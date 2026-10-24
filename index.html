@@ -48,7 +48,7 @@ input,select,textarea{width:100%;padding:9px 10px;border:1px solid var(--bd);bor
 // ====== ISI DENGAN DATA PROJECT SUPABASE ANDA (Project Settings > API) ======
 const SUPABASE_URL="https://gpdesddhlfgkxazpfmax.supabase.co";
 const SUPABASE_KEY="sb_publishable_ny44_bMKnfN1Ywp-5mgiDQ_CWoGeB1S";
-const sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
+const sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY,{auth:{storage:window.sessionStorage}});
 let isAdmin=false;
 const JALUR=["Afirmasi","Prestasi Akademik","Prestasi Non Akademik","Prestasi Tahfiz","Domisili"];
 const COL=["--c1","--c2","--c3","--c4","--pr"];
