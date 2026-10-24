@@ -53,6 +53,7 @@ const sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY,{auth:{storage:window.s
 let isAdmin=false;
 const JALUR=["Afirmasi","Prestasi Akademik","Prestasi Non Akademik","Prestasi Tahfiz","Domisili"];
 const COL=["--c1","--c2","--c3","--c4","--pr"];
+const KETJALUR=["AFIRMASI","PRESTASI AKADEMIK","PRESTASI NON AKADEMIK","TAHFIDZ","KETUA ORGANISASI","DOMISILI"];
 const AGAMA=["Islam","Kristen","Katolik","Hindu","Buddha","Khonghucu","Kepercayaan"];
 const PEND=["Tidak sekolah","SD/sederajat","SMP/sederajat","SMA/sederajat","D1/D2/D3","S1/D4","S2","S3"];
 const KERJA=["Tidak bekerja","Petani","Buruh","Nelayan","Pedagang/Wiraswasta","PNS/TNI/Polri","Guru/Dosen","Karyawan Swasta","Pensiunan","Lainnya"];
@@ -66,7 +67,7 @@ let rows=[],editing=null,fj="",fq="";
 
 // ---- field definitions: [key,label,type,required,options]
 const SEC=[
-["Data Pendaftaran SPMB",[["no_peserta","Nomor Peserta SPMB","text",1],["jalur","Jalur Penerimaan","select",1,JALUR],["no_kip","No. KIP/PIP/KKS (khusus Afirmasi)","text"],["ket_prestasi","Keterangan prestasi (bidang/tingkat/juara) – jalur Prestasi","text"]]],
+["Data Pendaftaran SPMB",[["no_peserta","Nomor Peserta SPMB","text",1],["jalur","Jalur Penerimaan","select",1,JALUR],["no_kip","No. KIP/PIP/KKS (khusus Afirmasi)","text"],["ket_jalur","Keterangan Jalur SPMB","select",1,KETJALUR]]],
 ["Identitas Peserta Didik",[["nama","Nama Lengkap (sesuai ijazah/KK)","text",1],["nisn","NISN (10 digit)","text",1],["nik","NIK (16 digit)","text",1],["no_kk","No. Kartu Keluarga","text",1],["jk","Jenis Kelamin","select",1,["Laki-laki","Perempuan"]],["tmp_lahir","Tempat Lahir","text",1],["tgl_lahir","Tanggal Lahir","date",1],["agama","Agama","select",1,AGAMA],["asal_sekolah","Sekolah Asal (SMP/MTs)","text",1],["no_ijazah","No. Seri Ijazah SMP/MTs (jika ada)","text"],["anak_ke","Anak ke-","number"],["jml_saudara","Jumlah Saudara Kandung","number"],["tinggi","Tinggi Badan (cm)","number"],["berat","Berat Badan (kg)","number"],["hp","No. HP/WhatsApp","tel",1],["email","Email","email"],["f_kip","Upload KIP/PKH (PDF, jika ada)","file"],["f_kk","Upload Kartu Keluarga (PDF)","file",1],["f_ijazah","Upload Ijazah/SKL (PDF)","file",1]]],
 ["Alamat Tempat Tinggal",[["alamat","Alamat (Jalan/Dusun)","text",1],["rt","RT","text"],["rw","RW","text"],["desa","Desa/Kelurahan","text",1],["kec","Kecamatan","text",1],["kab","Kabupaten/Kota","text",1],["pos","Kode Pos","text"],["tinggal","Tempat Tinggal","select",1,TINGGAL],["transport","Moda Transportasi ke Sekolah","select",1,TRANS],["jarak","Jarak ke Sekolah (km)","number"]]],
 ["Data Ayah Kandung",[["ayah_nama","Nama Ayah","text",1],["ayah_nik","NIK Ayah","text"],["ayah_lahir","Tahun Lahir Ayah","number"],["ayah_pend","Pendidikan Ayah","select",0,PEND],["ayah_kerja","Pekerjaan Ayah","select",0,KERJA],["ayah_gaji","Penghasilan Ayah","select",0,GAJI],["f_ktp_ayah","Upload Scan KTP Ayah (PDF)","file"]]],
