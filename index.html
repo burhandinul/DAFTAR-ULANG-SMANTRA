@@ -38,7 +38,7 @@ input,select,textarea{width:100%;padding:9px 10px;border:1px solid var(--bd);bor
 <header><h1>Daftar Ulang Siswa Baru – SPMB</h1><p>SMA Negeri 1 Terara · Tahun Pelajaran 2027/2028</p></header>
 <nav id="nav"><button data-t="beranda" class="on">Beranda</button><button data-t="daftar">Daftar Ulang</button><button data-t="admin" id="tadmin">Admin</button></nav>
 <main>
-<section id="beranda"></section>
+<section id="beranda"><div id="hs"></div><div id="cbx"></div></section>
 <section id="daftar" hidden></section>
 <section id="admin" hidden></section>
 </main>
@@ -103,7 +103,7 @@ async function save(e){e.preventDefault();const d={},fl={};for(const [k,v] of ne
 let stat={jalur:{},jk:{}};
 async function loadStat(){const {data}=await sb.rpc("rekap");if(data)stat=data;renderHome()}
 function renderHome(){const c=JALUR.map(j=>+(stat.jalur?.[j]||0)),t=c.reduce((a,b)=>a+b,0),mx=Math.max(1,...c);
- ID("beranda").innerHTML=`<div class="card"><h2>Siswa yang Telah Daftar Ulang</h2><div class="grid"><div class="stat"><b>${t}</b><span>Total daftar ulang</span></div>${JALUR.map((j,i)=>`<div class="stat"><b style="color:var(${COL[i]})">${c[i]}</b><span>${j}</span></div>`).join("")}</div></div>
+ ID("hs").innerHTML=`<div class="card"><h2>Siswa yang Telah Daftar Ulang</h2><div class="grid"><div class="stat"><b>${t}</b><span>Total daftar ulang</span></div>${JALUR.map((j,i)=>`<div class="stat"><b style="color:var(${COL[i]})">${c[i]}</b><span>${j}</span></div>`).join("")}</div></div>
  <div class="card"><h2>Grafik per Jalur</h2><div class="bars">${JALUR.map((j,i)=>`<div class="row"><div class="lb">${j}</div><div class="tr"><div class="fl" style="width:${c[i]/mx*100}%;background:var(${COL[i]})"></div></div><div class="n">${c[i]}</div></div>`).join("")}</div>${t?"":'<p style="color:var(--mu)">Belum ada data daftar ulang.</p>'}</div>
  <div class="card"><h2>Jenis Kelamin</h2>${["Laki-laki","Perempuan"].map(g=>`<span class="stat" style="display:inline-block;margin-right:8px"><b>${+(stat.jk?.[g]||0)}</b><span>${g}</span></span>`).join("")}</div>`}
 
@@ -114,7 +114,8 @@ function renderAdmin(){
   const go=async()=>{if(SUPABASE_KEY.startsWith("ISI_")){ID("lm").innerHTML='<div class="msg e">Supabase belum dikonfigurasi (SUPABASE_URL dan SUPABASE_KEY di index.html).</div>';return}
    const bt=ID("lb");bt.disabled=true;bt.textContent="Memeriksa\u2026";
    const r=await sb.auth.signInWithPassword({email:ID("le").value.trim(),password:ID("lp").value});
-   if(r.error){bt.disabled=false;bt.textContent="Masuk";ID("lm").innerHTML='<div class="msg e">Email atau kata sandi salah.</div>'}};
+   if(r.error){bt.disabled=false;bt.textContent="Masuk";const m=(r.error.message||"").toLowerCase(),c=r.error.status;
+    ID("lm").innerHTML='<div class="msg e">'+(m.includes("invalid login")?"Email atau kata sandi salah, atau akun belum dibuat di Supabase (Authentication > Users).":m.includes("not confirmed")?"Email belum dikonfirmasi. Di Supabase, buka Authentication > Users, klik akun tersebut, lalu pilih Confirm user.":m.includes("api key")||m.includes("apikey")||c===401?"SUPABASE_KEY salah. Salin ulang anon public key dari Project Settings > API.":m.includes("fetch")||m.includes("network")?"Tidak dapat terhubung ke Supabase. Periksa SUPABASE_URL dan koneksi internet.":"Gagal masuk: "+esc(r.error.message))+'</div>'}};
   ID("lb").onclick=go;[ID("le"),ID("lp")].forEach(i=>i.onkeydown=e=>{if(e.key==="Enter")go()});return}
  const l=filtered();
  ID("admin").innerHTML=`<div class="card"><h2>Data Siswa Daftar Ulang</h2><div class="bar"><select id="fj"><option value="">Semua jalur</option>${JALUR.map(j=>`<option ${j===fj?"selected":""}>${j}</option>`).join("")}</select><input id="fq" placeholder="Cari nama / NISN / NIK" value="${esc(fq)}"><button class="btn" id="pb" style="flex:0 0 auto">Cetak Laporan</button><button class="btn s" id="cb" style="flex:0 0 auto">Unduh CSV</button><button class="btn d" id="lo" style="flex:0 0 auto">Keluar</button></div>
@@ -146,6 +147,14 @@ async function loadRows(){const {data,error}=await sb.from("siswa").select("*").
 document.addEventListener("click",async e=>{const p=e.target.dataset?.f;if(!p)return;e.preventDefault();
  const {data}=await sb.storage.from("berkas").createSignedUrl(p,120);if(data)open(data.signedUrl,"_blank","noopener");else alert("Berkas tidak dapat dibuka (khusus admin).")});
 sb.auth.onAuthStateChange((_,ses)=>{isAdmin=!!ses;setTimeout(()=>{if(isAdmin)loadRows();else{rows=[];if(!ID("admin").hidden)renderAdmin()}},0)});
+ID("cbx").innerHTML=`<div class="card"><h2>Cetak Ulang Bukti Daftar Ulang</h2><p style="color:var(--mu);margin-top:0">Lupa mencetak bukti setelah mengisi? Masukkan NISN dan tanggal lahir, lalu klik Cetak Bukti.</p><div id="cm"></div><div class="grid"><div class="f"><label>NISN</label><input id="cn" inputmode="numeric" maxlength="10" placeholder="10 digit"></div><div class="f"><label>Tanggal Lahir</label><input id="cl" type="date"></div></div><button class="btn" id="cc">Cetak Bukti</button></div>`;
+const cari=async()=>{const n=ID("cn").value.trim(),l=ID("cl").value,m=ID("cm"),b=ID("cc");const e=t=>m.innerHTML=`<div class="msg e">${t}</div>`;
+ if(!/^\d{10}$/.test(n)||!l)return e("Isi NISN (10 digit) dan tanggal lahir.");
+ b.disabled=true;b.textContent="Mencari\u2026";const r=await sb.rpc("cari_bukti",{p_nisn:n,p_lahir:l});b.disabled=false;b.textContent="Cetak Bukti";
+ if(r.error)return e("Gagal mencari data: "+esc(r.error.message));
+ if(!r.data)return e("Data tidak ditemukan. Periksa NISN dan tanggal lahir, atau pastikan daftar ulang sudah dikirim.");
+ m.innerHTML="";bukti(r.data)};
+ID("cc").onclick=cari;[ID("cn"),ID("cl")].forEach(i=>i.onkeydown=e=>{if(e.key==="Enter")cari()});
 renderForm();renderHome();loadStat();
 </script>
 </body>
