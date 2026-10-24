@@ -36,19 +36,20 @@ input,select,textarea{width:100%;padding:9px 10px;border:1px solid var(--bd);bor
 </head>
 <body>
 <header><h1>Daftar Ulang Siswa Baru – SPMB</h1><p>SMA Negeri 1 Terara · Tahun Pelajaran 2027/2028</p></header>
-<nav id="nav"><button data-t="beranda" class="on">Beranda</button><button data-t="daftar">Daftar Ulang</button><button data-t="admin" id="tadmin">Admin</button></nav>
+<nav id="nav"><button data-t="beranda" class="on">Beranda</button><button data-t="daftar">Daftar Ulang</button><button data-t="ubah">Ubah Data</button><button data-t="admin" id="tadmin">Admin</button></nav>
 <main>
 <section id="beranda"><div id="hs"></div><div id="cbx"></div></section>
 <section id="daftar" hidden></section>
+<section id="ubah" hidden></section>
 <section id="admin" hidden></section>
 </main>
 <div id="pr"></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
 <script>
 // ====== ISI DENGAN DATA PROJECT SUPABASE ANDA (Project Settings > API) ======
-const SUPABASE_URL="https://gpdesddhlfgkxazpfmax.supabase.co";
-const SUPABASE_KEY="sb_publishable_ny44_bMKnfN1Ywp-5mgiDQ_CWoGeB1S";
-const sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY,{auth:{storage:window.sessionStorage}});
+const SUPABASE_URL="https://XXXX.supabase.co";
+const SUPABASE_KEY="ISI_ANON_PUBLIC_KEY";
+const sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY,{auth:{storage:window.sessionStorage}}); // sesi admin berakhir saat tab/browser ditutup
 let isAdmin=false;
 const JALUR=["Afirmasi","Prestasi Akademik","Prestasi Non Akademik","Prestasi Tahfiz","Domisili"];
 const COL=["--c1","--c2","--c3","--c4","--pr"];
@@ -60,6 +61,7 @@ const TINGGAL=["Bersama orang tua","Wali","Kost","Asrama","Panti asuhan","Lainny
 const TRANS=["Jalan kaki","Sepeda motor","Sepeda","Angkutan umum","Antar jemput sekolah","Mobil pribadi","Lainnya"];
 const ID=(k)=>document.getElementById(k);
 const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const genPin=()=>String(crypto.getRandomValues(new Uint32Array(1))[0]%1000000).padStart(6,"0");
 let rows=[],editing=null,fj="",fq="";
 
 // ---- field definitions: [key,label,type,required,options]
@@ -83,7 +85,7 @@ async function save(e){e.preventDefault();const d={},fl={};for(const [k,v] of ne
  if(!/^\d{10}$/.test(d.nisn))return err("NISN harus 10 digit angka.");
  if(!/^\d{16}$/.test(d.nik)||!/^\d{16}$/.test(d.no_kk))return err("NIK dan No. KK harus 16 digit angka.");
  if(editing&&editing!==d.nisn)return err("NISN tidak dapat diubah. Hapus data lalu input ulang jika NISN keliru.");
- const old=editing?rows.find(r=>r.nisn===editing):null;d.waktu=old?.waktu||new Date().toISOString();
+ const old=editing?rows.find(r=>r.nisn===editing):null;d.waktu=old?.waktu||new Date().toISOString();if(!editing)d.pin=genPin();
  const btn=e.target.querySelector("button[type=submit]"),lbl=btn.textContent;const rs=()=>{btn.disabled=false;btn.textContent=lbl};btn.disabled=true;btn.textContent="Menyimpan\u2026";
  try{
   for(const [k,f] of Object.entries(fl)){if(!f.size){if(old?.[k])d[k]=old[k];continue}
@@ -97,7 +99,7 @@ async function save(e){e.preventDefault();const d={},fl={};for(const [k,v] of ne
   const rm=Object.keys(fl).filter(k=>fl[k].size&&old?.[k]).map(k=>old[k]);if(rm.length)sb.storage.from("berkas").remove(rm);
  }catch(x){rs();return err("Gagal menyimpan: "+esc(x.message||x))}
  loadStat();if(isAdmin)loadRows();
- if(editing){renderForm();show("admin")}else{renderForm();ID("fm").innerHTML=`<div class="msg">Daftar ulang atas nama <b>${esc(d.nama)}</b> berhasil disimpan. Terima kasih.<br><br><button class="btn" id="cbk">Cetak Bukti Daftar Ulang</button></div>`;ID("cbk").onclick=()=>bukti(d);scrollTo(0,0)}}
+ if(editing){renderForm();show("admin")}else{renderForm();ID("fm").innerHTML=`<div class="msg">Daftar ulang atas nama <b>${esc(d.nama)}</b> berhasil disimpan. Terima kasih.<br><br>PIN untuk mengubah data: <b style="font-size:24px;letter-spacing:3px">${d.pin}</b><br><small>Catat atau cetak PIN ini dan jangan dibagikan. PIN hanya tampil sekali dan diperlukan untuk menu Ubah Data.</small><br><br><button class="btn" id="cbk">Cetak Bukti Daftar Ulang</button></div>`;ID("cbk").onclick=()=>bukti(d);scrollTo(0,0)}}
 
 // ---- Beranda
 let stat={jalur:{},jk:{}};
@@ -119,10 +121,11 @@ function renderAdmin(){
   ID("lb").onclick=go;[ID("le"),ID("lp")].forEach(i=>i.onkeydown=e=>{if(e.key==="Enter")go()});return}
  const l=filtered();
  ID("admin").innerHTML=`<div class="card"><h2>Data Siswa Daftar Ulang</h2><div class="bar"><select id="fj"><option value="">Semua jalur</option>${JALUR.map(j=>`<option ${j===fj?"selected":""}>${j}</option>`).join("")}</select><input id="fq" placeholder="Cari nama / NISN / NIK" value="${esc(fq)}"><button class="btn" id="pb" style="flex:0 0 auto">Cetak Laporan</button><button class="btn s" id="cb" style="flex:0 0 auto">Unduh CSV</button><button class="btn d" id="lo" style="flex:0 0 auto">Keluar</button></div>
- <div class="tw"><table><tr><th>No</th><th>Nama</th><th>NISN</th><th>JK</th><th>Jalur</th><th>Asal Sekolah</th><th>Berkas</th><th>Aksi</th></tr>${l.map((r,i)=>`<tr><td>${i+1}</td><td>${esc(r.nama)}</td><td>${esc(r.nisn)}</td><td>${r.jk==="Laki-laki"?"L":"P"}</td><td>${esc(r.jalur)}</td><td>${esc(r.asal_sekolah)}</td><td>${lnk(r)}</td><td><button class="btn s sm" data-b="${r.nisn}">Bukti</button> <button class="btn s sm" data-e="${r.nisn}">Edit</button> <button class="btn d sm" data-d="${r.nisn}">Hapus</button></td></tr>`).join("")||'<tr><td colspan="8">Tidak ada data.</td></tr>'}</table></div></div>`;
+ <div class="tw"><table><tr><th>No</th><th>Nama</th><th>NISN</th><th>JK</th><th>Jalur</th><th>Asal Sekolah</th><th>Berkas</th><th>Aksi</th></tr>${l.map((r,i)=>`<tr><td>${i+1}</td><td>${esc(r.nama)}</td><td>${esc(r.nisn)}</td><td>${r.jk==="Laki-laki"?"L":"P"}</td><td>${esc(r.jalur)}</td><td>${esc(r.asal_sekolah)}</td><td>${lnk(r)}</td><td><button class="btn s sm" data-b="${r.nisn}">Bukti</button> <button class="btn s sm" data-p="${r.nisn}">Reset PIN</button> <button class="btn s sm" data-e="${r.nisn}">Edit</button> <button class="btn d sm" data-d="${r.nisn}">Hapus</button></td></tr>`).join("")||'<tr><td colspan="8">Tidak ada data.</td></tr>'}</table></div></div>`;
  ID("fj").onchange=e=>{fj=e.target.value;renderAdmin()};
  ID("fq").oninput=e=>{fq=e.target.value;const p=e.target.selectionStart;renderAdmin();const n=ID("fq");n.focus();n.setSelectionRange(p,p)};
  ID("pb").onclick=cetak;ID("cb").onclick=csv;ID("lo").onclick=()=>sb.auth.signOut();
+ document.querySelectorAll("[data-p]").forEach(b=>b.onclick=async()=>{const r=rows.find(x=>x.nisn===b.dataset.p);if(!confirm(`Buat PIN baru untuk ${r.nama}? PIN lama tidak berlaku lagi.`))return;const pin=genPin();const q=await sb.rpc("set_pin",{p_nisn:r.nisn,p_pin:pin});if(q.error||q.data!==true)alert("Gagal membuat PIN: "+(q.error?q.error.message:"data tidak ditemukan"));else prompt(`PIN baru untuk ${r.nama} (salin lalu sampaikan kepada siswa):`,pin)});
  document.querySelectorAll("[data-b]").forEach(b=>b.onclick=()=>bukti(rows.find(r=>r.nisn===b.dataset.b)));
  document.querySelectorAll("[data-e]").forEach(b=>b.onclick=()=>{renderForm(rows.find(r=>r.nisn===b.dataset.e));show("daftar")});
  document.querySelectorAll("[data-d]").forEach(b=>b.onclick=async()=>{const r=rows.find(x=>x.nisn===b.dataset.d);if(confirm(`Hapus data ${r.nama} (${r.nisn})? Tindakan ini tidak dapat dibatalkan.`)){const dl=await sb.from("siswa").delete().eq("nisn",r.nisn);if(dl.error)alert("Gagal menghapus: "+dl.error.message);else{const ps=BK.map(b=>r[b[0]]).filter(Boolean);if(ps.length)sb.storage.from("berkas").remove(ps);loadRows();loadStat()}}})}
@@ -133,7 +136,7 @@ const BK=[["f_kk","KK"],["f_ijazah","Ijazah/SKL"],["f_kip","KIP/PKH"],["f_ktp_ay
 function lnk(r){return BK.filter(([k])=>r[k]).map(([k,n])=>`<a href="#" data-f="${esc(r[k])}">${n}</a>`).join(" · ")||"–"}
 function bukti(r){if(!r)return;const fd=(s,o)=>s?new Date(s.length<11?s+"T00:00":s).toLocaleDateString("id-ID",o||{day:"numeric",month:"long",year:"numeric"}):"";
  const rw=(a,b)=>`<tr><th>${a}</th><td>${esc(b)||"-"}</td></tr>`;
- ID("pr").innerHTML=`<div class="bukti"><div class="kop"><b>BUKTI DAFTAR ULANG PESERTA DIDIK BARU</b><br><b>SMA NEGERI 1 TERARA</b><br>Tahun Pelajaran 2027/2028</div><table class="kv">${rw("Nama Lengkap",r.nama)}${rw("NISN",r.nisn)}${rw("No. Peserta SPMB",r.no_peserta)}${rw("Jalur",r.jalur)}${rw("Tempat, Tanggal Lahir",r.tmp_lahir+", "+fd(r.tgl_lahir))}${rw("Jenis Kelamin",r.jk)}${rw("Asal Sekolah",r.asal_sekolah)}${rw("Orang Tua (Ayah / Ibu)",(r.ayah_nama||"-")+" / "+(r.ibu_nama||"-"))}${rw("No. HP",r.hp)}${rw("Berkas Terunggah",BK.filter(([k])=>r[k]).map(b=>b[1]).join(", "))}${rw("Tanggal Daftar Ulang",fd(r.waktu))}</table><p style="font-size:12px">Status: <b>BERHASIL DAFTAR ULANG</b>. Simpan bukti ini dan bawa saat kegiatan di sekolah.</p><div style="overflow:hidden"><div class="ttd">Terara, ${fd(r.waktu)}<br>Panitia SPMB<br><br><br><br>(................................)</div></div></div>`;
+ ID("pr").innerHTML=`<div class="bukti"><div class="kop"><b>BUKTI DAFTAR ULANG PESERTA DIDIK BARU</b><br><b>SMA NEGERI 1 TERARA</b><br>Tahun Pelajaran 2027/2028</div><table class="kv">${rw("Nama Lengkap",r.nama)}${rw("NISN",r.nisn)}${rw("No. Peserta SPMB",r.no_peserta)}${rw("Jalur",r.jalur)}${rw("Tempat, Tanggal Lahir",r.tmp_lahir+", "+fd(r.tgl_lahir))}${rw("Jenis Kelamin",r.jk)}${rw("Asal Sekolah",r.asal_sekolah)}${rw("Orang Tua (Ayah / Ibu)",(r.ayah_nama||"-")+" / "+(r.ibu_nama||"-"))}${rw("No. HP",r.hp)}${rw("Berkas Terunggah",BK.filter(([k])=>r[k]).map(b=>b[1]).join(", "))}${rw("Tanggal Daftar Ulang",fd(r.waktu))}${r.pin?rw("PIN Ubah Data (RAHASIA)",r.pin):""}</table><p style="font-size:12px">Status: <b>BERHASIL DAFTAR ULANG</b>. Simpan bukti ini dan bawa saat kegiatan di sekolah.${r.pin?" PIN bersifat rahasia dan diperlukan untuk mengubah data; jangan dibagikan kepada orang lain.":""}</p><div style="overflow:hidden"><div class="ttd">Terara, ${fd(r.waktu)}<br>Panitia SPMB<br><br><br><br>(................................)</div></div></div>`;
  setTimeout(()=>print(),100)}
 async function csv(){const ks=SEC.flatMap(s=>s[1].filter(f=>f[2]!=="file").map(f=>f[0])),l=filtered();
  const t="\ufeff"+[ks.join(","),...l.map(r=>ks.map(k=>`"${String(r[k]??"").replace(/"/g,'""')}"`).join(","))].join("\n");
@@ -155,6 +158,36 @@ const cari=async()=>{const n=ID("cn").value.trim(),l=ID("cl").value,m=ID("cm"),b
  if(!r.data)return e("Data tidak ditemukan. Periksa NISN dan tanggal lahir, atau pastikan daftar ulang sudah dikirim.");
  m.innerHTML="";bukti(r.data)};
 ID("cc").onclick=cari;[ID("cn"),ID("cl")].forEach(i=>i.onkeydown=e=>{if(e.key==="Enter")cari()});
+// ---- Ubah data oleh siswa (kunci: NISN + tanggal lahir)
+let ubahKey=null;
+function ubahVerify(msg){ubahKey=null;
+ ID("ubah").innerHTML=`<div class="card" style="max-width:520px"><h2>Ubah Data Daftar Ulang</h2><p style="color:var(--mu);margin-top:0">Salah mengisi identitas? Masukkan NISN, tanggal lahir, dan PIN (tercetak pada bukti daftar ulang pertama) untuk membuka dan memperbaiki data Anda. Lupa PIN? Hubungi panitia.</p><div id="um">${msg||""}</div><div class="grid"><div class="f"><label>NISN</label><input id="un" inputmode="numeric" maxlength="10" placeholder="10 digit"></div><div class="f"><label>Tanggal Lahir</label><input id="ul" type="date"></div><div class="f"><label>PIN (6 digit)</label><input id="up" inputmode="numeric" maxlength="6" type="password" autocomplete="off"></div></div><button class="btn" id="ub">Buka Data</button></div>`;
+ const go=async()=>{const n=ID("un").value.trim(),l=ID("ul").value,p=ID("up").value.trim(),m=ID("um"),b=ID("ub");const e=t=>m.innerHTML=`<div class="msg e">${t}</div>`;
+  if(!/^\d{10}$/.test(n)||!l||!/^\d{6}$/.test(p))return e("Isi NISN (10 digit), tanggal lahir, dan PIN (6 digit).");
+  b.disabled=true;b.textContent="Memeriksa\u2026";const r=await sb.rpc("ambil_data",{p_nisn:n,p_lahir:l,p_pin:p});b.disabled=false;b.textContent="Buka Data";
+  if(r.error)return e(esc(r.error.message));
+  if(!r.data)return e("Data tidak ditemukan atau PIN salah. Setelah 5 kali salah, akses dikunci 15 menit.");
+  ubahKey={n,l,p};ubahForm(r.data)};
+ ID("ub").onclick=go;[ID("un"),ID("ul"),ID("up")].forEach(i=>i.onkeydown=e=>{if(e.key==="Enter")go()})}
+function ubahForm(v){
+ ID("ubah").innerHTML=`<div class="card"><h2>Ubah Data: ${esc(v.nama)}</h2><p style="color:var(--mu);margin-top:0">NISN, tanggal lahir, jalur, dan nomor peserta tidak dapat diubah di sini. Jika salah, hubungi panitia. Berkas hanya diganti jika Anda memilih berkas baru.</p><div id="um"></div><form id="uf">${SEC.map(([t,fs])=>`<h3>${t}</h3><div class="grid">${fs.map(f=>fld(f,v)).join("")}</div>`).join("")}<button class="btn" type="submit">Simpan Perubahan</button> <button type="button" class="btn s" id="uc">Batal</button></form></div>`;
+ const f=ID("uf");["nisn","tgl_lahir","no_peserta"].forEach(k=>{if(f.elements[k])f.elements[k].readOnly=true});if(f.elements.jalur)f.elements.jalur.disabled=true;
+ f.querySelectorAll("a[data-f]").forEach(a=>{const s=document.createElement("span");s.textContent="\u2713 Berkas sudah terunggah";a.replaceWith(s)});
+ ID("uc").onclick=()=>ubahVerify();
+ f.onsubmit=async e=>{e.preventDefault();const m=ID("um"),er=t=>{m.innerHTML=`<div class="msg e">${t}</div>`;scrollTo(0,0)};
+  const d={...v},fl={};for(const [k,x] of new FormData(f).entries()){if(x instanceof File)fl[k]=x;else d[k]=x}
+  if(!/^\d{16}$/.test(d.nik)||!/^\d{16}$/.test(d.no_kk))return er("NIK dan No. KK harus 16 digit angka.");
+  const btn=f.querySelector("button[type=submit]");const rs=()=>{btn.disabled=false;btn.textContent="Simpan Perubahan"};btn.disabled=true;btn.textContent="Menyimpan\u2026";
+  try{for(const [k,x] of Object.entries(fl)){if(!x.size)continue;
+    if(x.type!=="application/pdf"&&!/\.pdf$/i.test(x.name)){rs();return er("Berkas harus berformat PDF.")}
+    if(x.size>5*1024*1024){rs();return er("Ukuran berkas maksimal 5 MB.")}
+    const p=`${d.nisn}/${k}-${Date.now()}.pdf`;const u=await sb.storage.from("berkas").upload(p,x,{contentType:"application/pdf"});if(u.error)throw u.error;d[k]=p}
+   const r=await sb.rpc("ubah_data",{p_nisn:ubahKey.n,p_lahir:ubahKey.l,p_pin:ubahKey.p,p_data:d});
+   if(r.error||r.data!==true){rs();return er("Gagal menyimpan: "+esc(r.error?r.error.message:"data tidak cocok"))}
+  }catch(x){rs();return er("Gagal menyimpan: "+esc(x.message||x))}
+  ID("ubah").innerHTML=`<div class="card" style="max-width:520px"><div class="msg">Data atas nama <b>${esc(d.nama)}</b> berhasil diperbarui.<br><br><button class="btn" id="ucb">Cetak Bukti Daftar Ulang</button></div><button class="btn s" id="uok">Selesai</button></div>`;
+  ID("ucb").onclick=()=>bukti(d);ID("uok").onclick=()=>ubahVerify();scrollTo(0,0)}}
+ubahVerify();
 renderForm();renderHome();loadStat();
 </script>
 </body>
